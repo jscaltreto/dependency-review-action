@@ -384,6 +384,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getInvalidLicenseChanges = void 0;
+const core = __importStar(__nccwpck_require__(2186));
 const utils_1 = __nccwpck_require__(918);
 const purl_1 = __nccwpck_require__(3609);
 const spdx = __importStar(__nccwpck_require__(8590));
@@ -394,14 +395,31 @@ function getInvalidLicenseChanges(changes, licenses) {
         const licenseExclusions = (_a = licenses.licenseExclusions) === null || _a === void 0 ? void 0 : _a.map((pkgUrl) => {
             return (0, purl_1.parsePURL)(pkgUrl);
         });
+        core.debug(`License Exclusions: ${JSON.stringify(licenseExclusions)}`);
         const groupedChanges = yield groupChanges(changes);
         // Takes the changes from the groupedChanges object and filters out the ones that are part of the exclusions list
         // It does by creating a new PackageURL object from the change and comparing it to the exclusions list
         groupedChanges.licensed = groupedChanges.licensed.filter(change => {
+            let changeAsPackageURL;
             if (change.package_url.length === 0) {
-                return true;
+                if (change.source_repository_url === null) {
+                    return true;
+                }
+                core.debug(`Package URL is empty, attempt to fallback to github. Change: ${JSON.stringify(change)}`);
+                const githubUrl = parseGitHubURL(change.source_repository_url);
+                if (githubUrl === null) {
+                    core.debug(`Couldn't parse GitHub URL from ${change.source_repository_url}`);
+                    return true;
+                }
+                changeAsPackageURL = {
+                    type: 'github',
+                    namespace: githubUrl.owner,
+                    name: githubUrl.repo
+                };
             }
-            const changeAsPackageURL = (0, purl_1.parsePURL)(encodeURI(change.package_url));
+            else {
+                changeAsPackageURL = (0, purl_1.parsePURL)(encodeURI(change.package_url));
+            }
             // We want to find if the licenseExclusion list contains the PackageURL of the Change
             // If it does, we want to filter it out and therefore return false
             // If it doesn't, we want to keep it and therefore return true
