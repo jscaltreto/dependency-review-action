@@ -206,6 +206,27 @@ test('it does not fail when the packages dont have a valid PURL', async () => {
   expect(invalidLicenses.forbidden.length).toEqual(1)
 })
 
+test('it does not filter out changes that are on the exclusions list with empty PURL fallback', async () => {
+  const emptyPurlChange = pipChange
+  emptyPurlChange.package_url = ''
+
+  const changes: Changes = [emptyPurlChange, npmChange, rubyChange]
+  const licensesConfig = {
+    allow: ['BSD-3-Clause'],
+    licenseExclusions: [
+      'pkg:pypi/package-1@1.1.1',
+      'pkg:npm/reeuhq@1.0.2',
+      'pkg:pip/package-1@1.1.1'
+    ]
+  }
+
+  const invalidLicenses = await getInvalidLicenseChanges(
+    changes,
+    licensesConfig
+  )
+  expect(invalidLicenses.forbidden.length).toEqual(0)
+})
+
 test('it does filters out changes if they are not on the exclusions list', async () => {
   const changes: Changes = [pipChange, npmChange, rubyChange]
   const licensesConfig = {

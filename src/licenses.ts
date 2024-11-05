@@ -29,6 +29,11 @@ export async function getInvalidLicenseChanges(
     licenseExclusions?: string[]
   }
 ): Promise<InvalidLicenseChanges> {
+  interface packageInfo {
+    type: string
+    name: string | null
+  }
+
   const {allow, deny} = licenses
   const licenseExclusions = licenses.licenseExclusions?.map(
     (pkgUrl: string) => {
@@ -41,11 +46,19 @@ export async function getInvalidLicenseChanges(
   // Takes the changes from the groupedChanges object and filters out the ones that are part of the exclusions list
   // It does by creating a new PackageURL object from the change and comparing it to the exclusions list
   groupedChanges.licensed = groupedChanges.licensed.filter(change => {
+    let changeAsPackageURL: packageInfo
     if (change.package_url.length === 0) {
-      return true
+      if (change.ecosystem !== null && change.name !== null) {
+        changeAsPackageURL = {
+          type: change.ecosystem,
+          name: change.name
+        }
+      } else {
+        return true
+      }
+    } else {
+      changeAsPackageURL = parsePURL(encodeURI(change.package_url))
     }
-
-    const changeAsPackageURL = parsePURL(encodeURI(change.package_url))
 
     // We want to find if the licenseExclusion list contains the PackageURL of the Change
     // If it does, we want to filter it out and therefore return false
